@@ -44,7 +44,7 @@ export default async function ArticlePage({
     notFound();
   }
 
-  const readingTime = calculateReadingTime(post.content);
+  const readingTime = post.readingTime;
 
   return (
     <article className="max-w-2xl mx-auto">

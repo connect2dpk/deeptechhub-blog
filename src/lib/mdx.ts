@@ -2,6 +2,7 @@ import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import matter from 'gray-matter';
 import { Post, PostMeta } from '@/types/post';
+import { calculateReadingTime } from '@/lib/posts';
 
 const postsDirectory = join(process.cwd(), 'content', 'blog');
 
@@ -14,6 +15,7 @@ export async function getPost(slug: string): Promise<Post> {
   return {
     slug,
     content,
+    readingTime: calculateReadingTime(content),
     ...(data as PostMeta),
   };
 }

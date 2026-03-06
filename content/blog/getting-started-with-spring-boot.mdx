@@ -1,0 +1,47 @@
+---
+title: "Getting Started with Spring Boot"
+description: "A comprehensive guide to building your first Spring Boot application"
+publishedAt: "2024-01-15"
+author: "DeepTechHub"
+category: "spring-boot"
+readingTime: "8 min read"
+tags: ["spring-boot", "java", "beginners"]
+---
+
+# Getting Started with Spring Boot
+
+Spring Boot is a powerful framework that simplifies Java development. In this guide, we'll explore how to create a simple REST API.
+
+## Why Spring Boot?
+
+Spring Boot offers several advantages:
+
+- **Rapid development** - Auto-configuration eliminates boilerplate code
+- **Production-ready** - Built-in error handling and monitoring
+- **Convention over configuration** - Smart defaults allow you to focus on business logic
+
+## Creating Your First Project
+```java
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+## Building a REST Controller
+```java
+@RestController
+@RequestMapping("/api/articles")
+public class ArticleController {
+    @GetMapping
+    public ResponseEntity<List<Article>> getAllArticles() {
+        return ResponseEntity.ok(List.of());
+    }
+}
+```
+
+## Conclusion
+
+Spring Boot makes enterprise Java development accessible and enjoyable. Start building today!

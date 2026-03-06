@@ -1,0 +1,45 @@
+---
+title: "Java Streams: A Complete Guide"
+description: "Master the Stream API for functional programming in Java"
+publishedAt: "2024-01-20"
+author: "DeepTechHub"
+category: "java"
+readingTime: "12 min read"
+tags: ["java", "streams", "functional-programming"]
+---
+
+# Java Streams: A Complete Guide
+
+The Stream API introduced in Java 8 revolutionized how we process collections of data.
+
+## What are Streams?
+
+Streams are sequences of elements that you can process in a functional manner.
+```java
+List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+numbers.stream()
+    .filter(n -> n > 2)
+    .map(n -> n * 2)
+    .forEach(System.out::println);
+```
+
+## Common Stream Operations
+
+### Filter
+Keep only elements that match a condition.
+
+### Map
+Transform each element.
+
+### Reduce
+Combine elements into a single value.
+
+## Best Practices
+
+- Use `filter()` before `map()` to reduce data early
+- Avoid modifying external state in stream operations
+- Consider readability over brevity
+
+---
+
+Happy streaming!

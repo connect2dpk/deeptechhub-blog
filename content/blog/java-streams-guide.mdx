@@ -1,45 +1,304 @@
 ---
-title: "Java Streams: A Complete Guide"
+title: "Java Stream API Deep Dive"
 description: "Master the Stream API for functional programming in Java"
-publishedAt: "2024-01-20"
+publishedAt: "2025-04-11"
 author: "DeepTechHub"
 category: "java"
-readingTime: "12 min read"
+readingTime: "7 min read"
 tags: ["java", "streams", "functional-programming"]
+cover: "/images/java/cover-java-stream-api.png"
 ---
 
-# Java Streams: A Complete Guide
+# Java Stream API Deep Dive: Practical Examples for efficient coding
 
-The Stream API introduced in Java 8 revolutionized how we process collections of data.
+## **Introduction to Java Stream API**
 
-## What are Streams?
+The Stream API, introduced in Java 8, revolutionized how we process collections by providing a **declarative**, **functional**, and **parallel-processing** approach. Instead of writing verbose loops, developers can chain operations like filtering, mapping, and reducing with clean, readable, and expressive syntax.
 
-Streams are sequences of elements that you can process in a functional manner.
+**Key Advantages:**
+
+✔ **Concise & Readable** – Eliminates boilerplate loops
+✔ **Lazy Evaluation** – Optimizes performance by processing only when needed
+✔ **Parallel Execution** – Enables multi-threaded processing with `parallelStream()`
+✔ **Functional Style** – Encourages immutability and reduces side effects
+
+In this article, we'll explore **practical use cases** of the Stream API with real-world examples.
+
+---
+
+## **1\. Frequency Map: Count Occurrences in a List**
+
+**Use Case:** Analysing word frequencies, log analysis.
+
 ```java
-List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
-numbers.stream()
-    .filter(n -> n > 2)
-    .map(n -> n * 2)
-    .forEach(System.out::println);
+List<String> items = List.of("apple", "banana", "apple");
+Map<String, Long> itemCounts = items.stream()
+    .collect(Collectors.groupingBy(
+        Function.identity(),
+        Collectors.counting()
+    ));
+// Output: {banana=1, apple=2}
 ```
 
-## Common Stream Operations
+---
 
-### Filter
-Keep only elements that match a condition.
+## **2\. Finding Duplicates in an Array**
 
-### Map
-Transform each element.
+**Use Case:** Data validation, deduplication.
 
-### Reduce
-Combine elements into a single value.
-
-## Best Practices
-
-- Use `filter()` before `map()` to reduce data early
-- Avoid modifying external state in stream operations
-- Consider readability over brevity
+```java
+int[] array = {1, 2, 3, 2, 4, 5, 3, 6, 7};
+List<Integer> duplicates = Arrays.stream(array)
+    .boxed()
+    .collect(Collectors.groupingBy(
+        Function.identity(),
+        Collectors.counting()
+    ))
+    .entrySet().stream()
+    .filter(entry -> entry.getValue() > 1)
+    .map(Map.Entry::getKey)
+    .collect(Collectors.toList());
+// Output: [2, 3]
+```
 
 ---
 
-Happy streaming!
+## **3\. Grouping & Aggregating Data**
+
+### **3.1 Filtering Within Groups**
+
+**Use Case:** Categorizing high-calorie dishes by type.
+
+```java
+Map<Dish.Type, List<Dish>> highCalorieDishesByType = menu.stream()
+    .collect(Collectors.groupingBy(
+        Dish::getType,
+        Collectors.filtering(
+            dish -> dish.getCalories() > 500,
+            Collectors.toList()
+        )
+    ));
+```
+
+### **3.2 Nested Grouping with Mapping**
+
+**Use Case:** Extracting dish names grouped by type.
+
+```java
+Map<Dish.Type, List<String>> groupedDishNames = menu.stream()
+    .collect(Collectors.groupingBy(
+        Dish::getType,
+        Collectors.mapping(Dish::getName, Collectors.toList())
+    ));
+```
+
+### **3.3 Top 3 Highest items per category**
+
+**Use Case:** Leaderboards, recommendations.
+
+```java
+Map<Dish.Type, List<Dish>> topDishesByType = menu.stream()
+    .collect(Collectors.groupingBy(
+        Dish::getType,
+        Collectors.collectingAndThen(
+            Collectors.toList(),
+            list -> list.stream()
+                .sorted(Comparator.comparingInt(Dish::getCalories).reversed())
+                .limit(3)
+                .collect(Collectors.toList())
+        )
+    ));
+```
+
+---
+
+## **4\. Partitioning Numbers into Even & Odd**
+
+**Use Case:** Data segmentation for separate processing.
+
+```java
+List<Integer> numbers = IntStream.rangeClosed(1, 10).boxed().toList();
+Map<Boolean, List<Integer>> partitioned = numbers.stream()
+    .collect(Collectors.partitioningBy(n -> n % 2 == 0));
+// Output: {false=[1, 3, 5, 7, 9], true=[2, 4, 6, 8, 10]}
+```
+
+---
+
+## **5\. Selective Filtering:** `takeWhile` & `dropWhile`
+
+**Use Case:** Processing sorted data (e.g., logs, time-series).
+
+**Advantages:** Short-circuiting. It takes elements from the start to the first mismatch.
+
+```java
+List<Dish> lowCalorie = menu.stream()
+    .takeWhile(dish -> dish.getCalories() < 320)
+    .collect(Collectors.toList());
+
+List<Dish> highCalorie = menu.stream()
+    .dropWhile(dish -> dish.getCalories() < 320)
+    .collect(Collectors.toList());
+```
+
+---
+
+## **6\. Detecting Duplicates in a Collection**
+
+**Use Case:** Preventing duplicate entries in APIs/databases.
+
+```java
+List<Integer> list = List.of(1, 2, 3, 4, 5, 3, 2, 6);
+Set<Integer> seen = new HashSet<>();
+Set<Integer> duplicates = list.stream()
+    .filter(n -> !seen.add(n))
+    .collect(Collectors.toSet());
+// Output: [2, 3]
+```
+
+---
+
+## **7\. Custom Collector with** `Collector.of`
+
+**Use Case:** Custom string joining (e.g., CSV, logs).
+
+```java
+Collector<String, StringJoiner, String> customJoiner = Collector.of(
+    () -> new StringJoiner(" | "),
+    StringJoiner::add,
+    StringJoiner::merge,
+    StringJoiner::toString
+);
+String joined = Stream.of("apple", "banana", "cherry").collect(customJoiner);
+// Output: "apple | banana | cherry"
+```
+
+---
+
+## **8\. Top-N by Group (e.g., Top 3 Employees per Department)**
+
+**Use Case:** Dashboards, leaderboards.
+
+```java
+Map<String, List<Employee>> topEmployees = employees.stream()
+    .collect(Collectors.groupingBy(
+        Employee::getDepartment,
+        Collectors.collectingAndThen(
+            Collectors.toList(),
+            list -> list.stream()
+                .sorted(Comparator.comparingDouble(Employee::getPerformanceScore).reversed())
+                .limit(3)
+                .collect(Collectors.toList())
+        )
+    ));
+```
+
+---
+
+## **9\. Find First Non-Repeating Character in a String**
+
+**Use Case:** Data validation, text processing.
+
+```java
+String input = "swiss";
+Character firstUnique = input.chars()
+    .mapToObj(c -> (char) c)
+    .collect(Collectors.groupingBy(
+        c -> c,
+        LinkedHashMap::new,
+        Collectors.counting()
+    ))
+    .entrySet().stream()
+    .filter(e -> e.getValue() == 1)
+    .map(Map.Entry::getKey)
+    .findFirst()
+    .orElse(null);
+// Output: 'w'
+```
+
+---
+
+## **10\. Generate Cartesian Product**
+
+**Use Case:** Combining all pairs (e.g., users × roles).
+
+```java
+List<String> users = List.of("Alice", "Bob");
+List<String> roles = List.of("Admin", "User");
+List<String> pairs = users.stream()
+    .flatMap(user -> roles.stream().map(role -> user + "-" + role))
+    .collect(Collectors.toList());
+// Output: [Alice-Admin, Alice-User, Bob-Admin, Bob-User]
+```
+
+---
+
+## **11\. Advanced Use Cases**
+
+### **11.1 Compute Median from a Dynamic Dataset**
+
+```java
+List<Integer> nums = List.of(3, 5, 1, 4, 2);
+double median = nums.stream()
+    .sorted()
+    .skip((nums.size() - 1) / 2)
+    .limit(nums.size() % 2 == 0 ? 2 : 1)
+    .mapToInt(Integer::intValue)
+    .average()
+    .orElse(0);
+// Output: 3.0
+```
+
+### **11.2 Paginate Large Lists**
+
+```java
+int page = 2, pageSize = 5;
+List<String> paged = items.stream()
+    .skip((page - 1) * pageSize)
+    .limit(pageSize)
+    .collect(Collectors.toList());
+```
+
+---
+
+## **12\. Debugging Stream Pipelines with** `peek()`
+
+**Use Case:** Logging intermediate steps.
+
+```java
+List<String> results = Stream.of("stream", "api", "power", "rocks")
+    .peek(s -> System.out.println("Original: " + s))
+    .map(String::toUpperCase)
+    .peek(s -> System.out.println("Uppercased: " + s))
+    .filter(s -> s.length() > 4)
+    .collect(Collectors.toList());
+```
+
+---
+
+## **13\. Zipping Two Lists**
+
+**Use Case:** Merging parallel data (e.g., names + scores).
+
+```java
+List<String> names = List.of("Alice", "Bob");
+List<Integer> scores = List.of(85, 92);
+List<String> zipped = IntStream.range(0, Math.min(names.size(), scores.size()))
+    .mapToObj(i -> names.get(i) + ":" + scores.get(i))
+    .collect(Collectors.toList());
+// Output: [Alice:85, Bob:92]
+```
+
+---
+
+## **Best Practices**
+
+✔ **Prefer Method References**
+✔ **Use Parallel Streams Wisely** (Only for large datasets)
+✔ **Replace** `peek()` with Logging in Production
+
+---
+
+## **Conclusion**
+
+The Stream API is a **powerful tool** for processing collections efficiently and elegantly. Mastering these techniques allows writing **cleaner, more maintainable, and often faster** Java code.

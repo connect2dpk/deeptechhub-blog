@@ -15,6 +15,7 @@ export default function Header() {
 
         <ul className="hidden md:flex gap-8 text-gray-700 dark:text-gray-300">
           <li><Link href="/" className="hover:text-blue-600 transition">Home</Link></li>
+          <li><Link href="/about" className="hover:text-blue-600 transition">About</Link></li>
           <li><Link href="/blog" className="hover:text-blue-600 transition">Blog</Link></li>
           <li><Link href="https://github.com/connect2dpk" target="_blank" className="hover:text-blue-600 transition">GitHub</Link></li>
         </ul>
@@ -29,6 +30,7 @@ export default function Header() {
         {isOpen && (
           <ul className="absolute top-16 left-0 right-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 flex flex-col gap-4 p-4 md:hidden">
             <li><Link href="/" className="hover:text-blue-600 transition">Home</Link></li>
+            <li><Link href="/about" className="hover:text-blue-600 transition">About</Link></li>
             <li><Link href="/blog" className="hover:text-blue-600 transition">Blog</Link></li>
             <li><Link href="https://github.com/connect2dpk" target="_blank" className="hover:text-blue-600 transition">GitHub</Link></li>
           </ul>

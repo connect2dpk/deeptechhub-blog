@@ -8,6 +8,7 @@ export interface Post {
   readingTime: string;
   content: string;
   tags?: string[];
+  cover?: string;
 }
 
 export interface PostMeta {
@@ -17,4 +18,5 @@ export interface PostMeta {
   author: string;
   category: string;
   tags?: string[];
+  cover?: string;
 }

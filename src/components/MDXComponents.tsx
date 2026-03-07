@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import CodeBlock from './CodeBlock';
 
 export const MDXComponents = {
   h1: ({ ...props }: any) => (
@@ -22,12 +23,18 @@ export const MDXComponents = {
       {...props}
     />
   ),
-  code: ({ ...props }: any) => (
-    <code className="bg-gray-200 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm" {...props} />
-  ),
-  pre: ({ ...props }: any) => (
-    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto mb-4 font-mono text-sm" {...props} />
-  ),
+  code: ({ children, className, ...props }: any) => {
+    const isInline = !className;
+    if (isInline) {
+      return (
+        <code className="bg-gray-200 dark:bg-gray-800 px-2 py-1 rounded font-mono text-sm" {...props}>
+          {children}
+        </code>
+      );
+    }
+    return <CodeBlock className={className}>{children}</CodeBlock>;
+  },
+  pre: ({ children }: any) => children, // Handled by CodeBlock
   blockquote: ({ ...props }: any) => (
     <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 dark:bg-blue-900/20 italic text-gray-700 dark:text-gray-300" {...props} />
   ),

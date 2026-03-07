@@ -3,6 +3,7 @@ import { getPost, getAllPosts } from '@/lib/mdx';
 import { MDXComponents } from '@/components/MDXComponents';
 import { formatDate, calculateReadingTime } from '@/lib/posts';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 
 export async function generateStaticParams() {
@@ -97,6 +98,19 @@ export default async function ArticlePage({
           </div>
         )}
       </header>
+
+      {/* Cover Image */}
+      {post.cover && (
+        <div className="mb-8">
+          <Image
+            src={post.cover}
+            alt={post.title}
+            width={800}
+            height={400}
+            className="w-full h-auto rounded-lg"
+          />
+        </div>
+      )}
 
       {/* Article Content */}
       <div className="prose dark:prose-invert max-w-none">

@@ -1,0 +1,332 @@
+---
+title: "A Complete Guide to Testing Spring Boot Microservices"
+description: "Unit, Integration, and End-to-End testing Strategies for Reliable Microservice Applications"
+publishedAt: "2025-05-26"
+author: "DeepTechHub"
+category: "testing"
+readingTime: "5 min read"
+tags: ["java", "spring-boot", "testing"]
+cover: "/images/spring/cover-spring-boot-testing.png"
+---
+
+# A Complete Guide to Testing Spring Boot Microservices
+
+**Unit, Integration, and End-to-End testing Strategies for Reliable Microservice Applications**
+
+## **Introduction**
+
+Testing is a critical aspect of building **reliable and maintainable** Spring Boot applications—especially in a **microservices** architecture.
+
+In this blog, I’ll walk you through how I implemented **unit tests**, **integration tests**, and **test configurations** in my [**DeeptechHub**](https://github.com/deepak1410/deeptechhub) project—a multi-module Spring Boot system featuring `identity-service` and `task-service`.
+
+Whether you're building a similar setup or refining your testing approach, this guide will help you apply best practices using:
+
+✅ **Unit Tests** – Isolated business logic ✅ **Integration Tests** – API, database, and inter-service interactions ✅ **Testcontainers** – Real services (PostgreSQL, Redis) ✅ **Mocking Feign Clients** – To avoid external failures ✅ **JaCoCo Reports** – Measure and improve code coverage
+
+---
+
+## **1\. Project Overview**
+
+**DeeptechHub** is a modular Spring Boot microservices project with:
+
+1. `identity-service` – Handles user authentication (JWT) and profile management
+
+2. `task-service` – Manages tasks, categories, and deadlines
+
+
+🔗 **GitHub Repository:** [github.com/deepak1410/deeptechhub](http://github.com/deepak1410/deeptechhub)
+
+---
+
+## **2\. Project Setup & Testing Dependencies**
+
+### 🔹 **Testing Dependencies (**`parent pom.xml`)
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.9.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>4.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.18.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <version>0.8.8</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+### 🔹 **Useful Maven Commands**
+
+```bash
+# Run all tests
+mvn test
+
+# Run tests for a specific service
+mvn test -pl identity-service
+
+# Generate test coverage report
+mvn clean verify
+
+# Open JaCoCo report
+open target/site/jacoco/index.html
+```
+
+### 🔹 **JaCoCo Plugin Configuration**
+
+```xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.8</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+---
+
+## **3\. Testing Strategy**
+
+### 🔹 **Unit Tests**
+
+**Purpose:** Validate logic in isolation (e.g., service or utility methods) **Tech Stack:** `JUnit 5`, `Mockito`
+
+#### ✅ Example: Testing `UserServiceImpl`
+
+```java
+@ExtendWith(MockitoExtension.class)
+class UserServiceImplTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private UserServiceImpl userService;
+
+    @Test
+    void getUserById_shouldReturnUser() {
+        User mockUser = new User(1L, "test@example.com", "password");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        UserDto result = userService.getUserById(1L);
+
+        assertEquals("test@example.com", result.getEmail());
+        verify(userRepository).findById(1L);
+    }
+}
+```
+
+✔️ **Tips**:
+
+* Keep tests fast and focused.
+
+* Use `verify()` to ensure expected interactions.
+
+* Stick to the **Given–When–Then** pattern.
+
+
+---
+
+### 🔹 **Integration Tests**
+
+**Purpose:** Test end-to-end behavior—APIs, DB, security, and real services **Tools:** `@SpringBootTest`, `Testcontainers`, `MockMvc`
+
+#### ✅ Example: Testing `TaskController`
+
+```java
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+@AutoConfigureMockMvc
+@Transactional
+class TaskControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void createTask_shouldReturn201() throws Exception {
+        TaskRequest request = new TaskRequest("Task A", "Desc", LocalDateTime.now().plusDays(1));
+
+        mockMvc.perform(post("/api/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value("Task A"));
+    }
+}
+```
+
+✔️ **Tips**:
+
+* Annotate with `@Transactional` to auto-rollback DB state.
+
+* Use `@WithMockUser` for secured endpoints.
+
+* Prefer real PostgreSQL over in-memory DBs using **Testcontainers**.
+
+
+---
+
+### 🔹 **Mocking Feign Clients**
+
+**Challenge:** Tests fail if the real service (e.g. identity-service) is down. **Solution:** Use `@MockBean` to replace Feign clients.
+
+#### ✅ Example: Mocking `IdentityServiceClient`
+
+```java
+@SpringBootTest
+class TaskServiceIntegrationTest {
+
+    @MockBean
+    private IdentityServiceClient identityServiceClient;
+
+    @BeforeEach
+    void setup() {
+        when(identityServiceClient.getUserById(1L))
+            .thenReturn(new UserDto(1L, "test@example.com", "Test User"));
+    }
+}
+```
+
+✔️ **Tips**:
+
+* Replace only the Feign client—not the whole service.
+
+* Simulate success/failure scenarios in tests.
+
+
+---
+
+## **4\. Test Configuration**
+
+### 🔹 **Using Testcontainers for Real Databases**
+
+```java
+@Testcontainers
+public abstract class TestContainersConfig {
+
+    @Container
+    static final PostgreSQLContainer<?> postgres =
+        new PostgreSQLContainer<>("postgres:16")
+            .withDatabaseName("testdb")
+            .withUsername("testuser")
+            .withPassword("testpass");
+
+    @DynamicPropertySource
+    static void configure(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+}
+```
+
+✔️ **Why it matters**:
+
+* Tests run against a real PostgreSQL environment.
+
+* Avoids differences between H2 and production SQL behavior.
+
+
+---
+
+## **5\. Key Challenges & Solutions**
+
+### 🔹 **Mocking Security**
+
+Use `@WithMockUser` to simulate authenticated requests.
+
+```java
+@Test
+@WithMockUser(username = "admin", roles = "ADMIN")
+void deleteTask_withAdminRole_shouldSucceed() {
+    // your test
+}
+```
+
+### 🔹 **Managing Test Dependencies**
+
+Use a centralized `dependencyManagement` section to control versions and avoid conflicts.
+
+### 🔹 **Ensuring Test Isolation**
+
+Combine `Testcontainers` and `@Transactional` to:
+
+* Boot a fresh container DB instance
+
+* Automatically rollback test data
+
+
+```mermaid
+graph LR
+    A[Test Start] --> B[Testcontainers: Real DB]
+    B --> C[@Transactional]
+    C --> D[Auto Rollback After Test]
+```
+
+---
+
+## **6\. Lessons Learned**
+
+1. **Mock all external service calls**—never rely on availability during tests
+
+2. **Use realistic test environments** (Testcontainers &gt; H2)
+
+3. **Write tests for edge cases**—invalid input, missing auth, etc.
+
+4. **Keep test data isolated and repeatable**
+
+
+---
+
+## **7\. What’s Next?**
+
+Here are a few directions I'm exploring next:
+
+🧩 **Contract Testing** using Pact to validate inter-service compatibility
+
+📈 **Improving Coverage** with advanced JaCoCo rules
+
+🚀 **Performance Testing** using JMeter or Gatling
+
+---
+
+## **Final Thoughts**
+
+Testing microservices in Spring Boot is not just about high code coverage—it’s about **confidence** in your architecture.
+
+Start with **unit tests**, expand to **integration tests**, and lean on **Testcontainers** to simulate production-like behavior. With a good test strategy, your microservices can be reliable, maintainable, and ready for scale.
+
+Have thoughts, suggestions, or feedback? Feel free to [connect with me on GitHub](https://github.com/deepak1410) or drop a comment below. 👇

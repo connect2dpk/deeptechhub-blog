@@ -1,0 +1,294 @@
+---
+title: "Building APIs with Spring Boot and GraphQL"
+description: "A Step-by-Step Guide with Practical Implementation"
+publishedAt: "2025-06-10"
+author: "DeepTechHub"
+category: "spring-boot"
+readingTime: "5 min read"
+tags: ["java", "spring-boot", "graphql"]
+cover: "/images/graphql/cover-spring-boot-graphql.png"
+---
+
+# Building APIs with Spring Boot and GraphQL
+
+**A Step-by-Step Guide with Practical Implementation**
+
+## **Introduction**
+
+GraphQL has transformed API design and consumption by offering a flexible, efficient, and strongly-typed alternative to REST. In this article, I will walk you through creating a **Workforce Management System** using **Spring Boot** and **GraphQL**, covering:
+
+✅ **GraphQL Schema Design**
+✅ **Spring Boot Integration**
+✅ **CRUD Operations with Pagination, Sorting, & Filtering**
+✅ **Input Validation & Error Handling**
+✅ **Database Setup with H2**
+
+You can explore the complete project on [**GitHub**](https://github.com/deepak1410/spring-boot-graphql).
+
+---
+
+## **Why GraphQL over REST?**
+
+Unlike REST, GraphQL allows clients to request **exactly the data they need**, reducing over-fetching and under-fetching. Key benefits:
+
+* **Single Endpoint** (`/graphql`) for all queries and mutations
+
+* **Strong Typing** with Schema Definition Language (SDL), making it easy to document and evolve
+
+* **Real-time Data** via Subscriptions (WebSocket)
+
+
+---
+
+## Project Overview
+
+The **Workforce Management System** is a simple backend that allows you to:
+
+* Manage `Employee` and `Department` entities
+
+* Perform basic operations like create, read, update, and delete (CRUD)
+
+* Query data using sorting, filtering, and pagination.
+
+* Use GraphQL queries and mutations for interaction
+
+
+Tech Stack:
+
+* Java-21
+
+* Spring Boot 3.4.4
+
+* GraphQL Java
+
+* H2 (in-memory) database
+
+* Maven
+
+
+---
+
+## **Project Setup**
+
+### **1\. Dependencies** (`pom.xml`)
+
+```xml
+<dependencies>
+    <!-- Spring Boot Starter GraphQL -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-graphql</artifactId>
+    </dependency>
+
+    <!-- Spring Data JPA + H2 Database -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+
+    <!-- Input Validation -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+</dependencies>
+```
+
+### **2\. GraphQL Schema** (`schema.graphqls`)
+
+```graphql
+type Department {
+    id: ID!
+    name: String!
+    createdYear: Int!
+    employees: [Employee]!
+}
+
+type Employee {
+    id: ID!
+    name: String!
+    email: String!
+    department: Department!
+    city: String!
+}
+
+type Query {
+    departments(
+        page: Int = 0,
+        size: Int = 10,
+        filter: DepartmentFilter
+    ): DepartmentPage!
+}
+
+input DepartmentFilter {
+    name: String
+    nameContains: String
+    createdYear: Int
+    createdYearGt: Int
+    createdYearLt: Int
+}
+
+type Mutation {
+    createDepartment(input: DepartmentInput!): Department!
+    deleteDepartment(id: ID!): Boolean!
+}
+
+input DepartmentInput {
+    name: String!
+    createdYear: Int!
+}
+```
+
+---
+
+## **Key Implementations**
+
+### **1\. Entity Mapping (JPA)**
+
+```java
+@Entity
+public class Department {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    private String name;
+
+    @Min(1900) @Max(2025)
+    private int createdYear;
+
+    @OneToMany(mappedBy = "department")
+    private List<Employee> employees;
+}
+```
+
+### **2\. GraphQL Controller**
+
+```java
+@Controller
+public class DepartmentController {
+
+    @Autowired
+    private DepartmentRepository repo;
+
+    @QueryMapping
+    public Page<Department> departments(
+        @Argument Integer page,
+        @Argument Integer size,
+        @Argument DepartmentFilter filter
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Specification<Department> spec = buildSpec(filter);
+        return repo.findAll(spec, pageable);
+    }
+
+    @MutationMapping
+    public Department createDepartment(@Valid @Argument DepartmentInput input) {
+        return repo.save(convertToEntity(input));
+    }
+}
+```
+
+### **3\. Dynamic Filtering with JPA Specifications**
+
+```java
+public class DepartmentSpecification {
+    public static Specification<Department> withFilter(DepartmentFilter filter) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (filter.getName() != null) {
+                predicates.add(cb.equal(root.get("name"), filter.getName()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+}
+```
+
+---
+
+## **Testing the API**
+
+### **Sample Queries**
+
+**1\. Fetch Departments (Paginated)**
+
+```graphql
+query {
+  departments(page: 0, size: 5) {
+    content {
+      id
+      name
+      employees { name }
+    }
+  }
+}
+```
+
+**2\. Create a Department**
+
+```graphql
+mutation {
+  createDepartment(input: {
+    name: "Engineering",
+    createdYear: 2023
+  }) {
+    id
+    name
+  }
+}
+```
+
+**3\. Update Department**
+
+```graphql
+mutation {
+  updateDepartment(
+    id: "1",
+    input: {
+      name: "Marketting",
+      createdYear: 2024
+    }
+  ) {
+    id
+    name
+    createdYear
+  }
+}
+```
+
+**4\. Delete a Department**
+
+```graphql
+mutation {
+  deleteDepartment(id: "2")
+}
+```
+
+## **Why This Architecture?**
+
+🔹 **Efficiency**: Clients fetch only required fields.
+🔹 **Type Safety**: Compile-time schema validation.
+🔹 **Scalability**: Easy to extend with new types.
+
+---
+
+## **Conclusion**
+
+This project demonstrates how **Spring Boot + GraphQL** can simplify API development while offering flexibility. Key takeaways:
+
+* **GraphQL reduces over-fetching** compared to REST.
+
+* **Spring Data JPA** integrates seamlessly with GraphQL resolvers.
+
+* **Input validation** ensures data consistency.
+
+
+Explore the full code on [**GitHub**](https://github.com/deepak1410/spring-boot-graphql) and try it yourself! If you have any questions or feedback, feel free to share them in the comments below.

@@ -1,14 +1,26 @@
-import { getAllPosts } from '@/lib/mdx';
+'use client';
+
 import BlogCard from '@/components/BlogCard';
+import { Post } from '@/types/post';
+import { useState, useEffect } from 'react';
 
-export const metadata = {
-  title: 'Blog - DeepTechHub',
-  description: 'All articles about Java, Spring Boot, and backend development.',
-};
+export default function BlogPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-export default async function BlogPage() {
-  const posts = await getAllPosts();
-  const categories = [...new Set(posts.map(p => p.category))];
+  useEffect(() => {
+    async function fetchPosts() {
+      const response = await fetch('/api/posts');
+      const allPosts: Post[] = await response.json();
+      setPosts(allPosts);
+      const uniqueCategories = [...new Set(allPosts.map(p => p.category))];
+      setCategories(uniqueCategories);
+    }
+    fetchPosts();
+  }, []);
+
+  const filteredPosts = selectedCategory ? posts.filter(post => post.category === selectedCategory) : posts;
 
   return (
     <div>
@@ -17,16 +29,31 @@ export default async function BlogPage() {
           All Articles
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-400">
-          {posts.length} articles on Java, Spring Boot, and backend development.
+          {filteredPosts.length} articles on Java, Spring Boot, and backend development.
         </p>
       </div>
 
       {/* Category Filter */}
       <div className="mb-8 flex flex-wrap gap-2">
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className={`px-4 py-2 rounded-full border transition text-sm font-medium ${
+            selectedCategory === null
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'border-gray-300 dark:border-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600'
+          }`}
+        >
+          All
+        </button>
         {categories.map((category) => (
           <button
             key={category}
-            className="px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition text-sm font-medium"
+            onClick={() => setSelectedCategory(category)}
+            className={`px-4 py-2 rounded-full border transition text-sm font-medium ${
+              selectedCategory === category
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-gray-300 dark:border-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600'
+            }`}
           >
             {category}
           </button>
@@ -35,8 +62,8 @@ export default async function BlogPage() {
 
       {/* Articles Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {posts.length > 0 ? (
-          posts.map((post) => (
+        {filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
             <BlogCard key={post.slug} post={post} />
           ))
         ) : (

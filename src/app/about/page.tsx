@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export const metadata = {
   title: 'About - DeepTechHub',
   description: 'Learn more about DeepTechHub, a blog focused on Java, Spring Boot, and backend development.',
@@ -31,9 +33,18 @@ export default function AboutPage() {
         </ul>
 
         <h2 className="text-2xl font-bold mb-4">About the Author</h2>
-        <p className="mb-6">
-          DeepTechHub is maintained by Deepak Kumar, a passionate software engineer with extensive experience in Java and backend development. With years of industry experience, Deepak shares insights gained from working on large-scale enterprise applications and modern distributed systems.
-        </p>
+        <div className="flex items-center mb-6">
+          <Image
+            src="/images/admin/deepak1.jpg"
+            alt="Deepak Kumar"
+            width={100}
+            height={100}
+            className="rounded-full mr-6"
+          />
+          <p>
+            DeepTechHub is maintained by Deepak Kumar, a passionate software engineer with extensive experience in Java and backend development. With years of industry experience, Deepak shares insights gained from working on large-scale enterprise applications and modern distributed systems.
+          </p>
+        </div>
 
         <h2 className="text-2xl font-bold mb-4">Get in Touch</h2>
         <p className="mb-6">

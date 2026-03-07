@@ -1,0 +1,790 @@
+---
+title: "Mastering Stack and Queue in Java"
+description: "Mastering Stack and Queue in Java: Concepts, Implementations, and Best Practices"
+publishedAt: "2026-02-26"
+author: "DeepTechHub"
+category: "java"
+readingTime: "15 min read"
+tags: ["java", "data-structure"]
+cover: "/images/java/cover-stack-queue.png"
+featured: true
+---
+
+Stack and Queue are two fundamental data structures that appear frequently in real-world software development and technical interviews. Although they seem simple, choosing the right implementation and understanding their behavior within the Java Collections Framework is critical for writing efficient, production-ready code. In this article, we will explore their core concepts, internal hierarchy, practical implementations, and best practices in Java.
+
+* * *
+
+## **The Big Picture: Understanding the Hierarchy**
+
+Before we dive into individual classes, let's map out where everything lives in the Java Collections Framework:
+
+```bash
+java.util.Collection
+│
+├── java.util.Queue (Interface) ─── FIFO by default
+│   │
+│   ├── java.util.Deque (Interface) ─── "Double-Ended Queue"
+│   │   ├── ArrayDeque (Class) ✅ Best for Stack & Queue
+│   │   └── LinkedList (Class) ✅ Works, but slower
+│   │
+│   ├── PriorityQueue (Class) ─── Min-heap (priority order)
+│   └── java.util.concurrent.BlockingQueue (Interface) ─── Thread-safe
+│       ├── ArrayBlockingQueue
+│       ├── LinkedBlockingQueue
+│       └── PriorityBlockingQueue
+│
+└── Thread-Safe Variants (java.util.concurrent)
+    ├── ConcurrentLinkedQueue (Queue)
+    ├── ConcurrentLinkedDeque (Deque)
+    └── LinkedBlockingDeque (Deque)
+```
+
+*   Core collection framework
+
+
+![Queue related collection packages](/images/java/queue-collection-packages.png)
+
+*   Concurrent package
+
+
+![Concurrent packages related to Queue](/images/java/queue-concurrent-packages.png)
+
+The key insight: **Queue is an interface**. Different implementations serve different purposes. Choose wisely based on your use case.
+
+* * *
+
+## **Queue Fundamentals**
+
+### **What is a Queue?**
+
+A queue follows the **FIFO** (First In, First Out) principle. Think of a line at a coffee shop: the first person to arrive gets served first.
+
+```plaintext
+enqueue(1) → [1]
+enqueue(2) → [1, 2]
+enqueue(3) → [1, 2, 3]
+dequeue()  → returns 1, queue is [2, 3]
+```
+
+### **The Queue Interface: Two Sets of Methods**
+
+The Queue interface provides six core methods, organized into two families that handle errors differently:
+
+| **Operation** | **Throws Exception** | **Returns null/false** |
+| --- | --- | --- |
+| Insert element | `add(e)` | `offer(e)` |
+| Remove front | `remove()` | `poll()` |
+| Inspect front | `element()` | `peek()` |
+
+**Pro Tip:** Prefer `offer()`, `poll()`, and `peek()` in production code. They don't throw exceptions, making them safer for bounded queues and edge cases.
+
+### **Basic Queue Example**
+
+```java
+Queue<String> queue = new ArrayDeque<>();
+
+// Enqueue
+queue.offer("Customer 1");
+queue.offer("Customer 2");
+queue.offer("Customer 3");
+
+// Peek (non-destructive)
+System.out.println(queue.peek()); // Customer 1
+
+// Dequeue
+System.out.println(queue.poll()); // Customer 1
+System.out.println(queue.poll()); // Customer 2
+```
+
+* * *
+
+## **Stack Fundamentals**
+
+### **What is a Stack?**
+
+A stack follows **LIFO** (Last In, First Out). Think of a stack of plates: you add to the top and remove from the top.
+
+```plaintext
+push(1) → [1]
+push(2) → [1, 2]
+push(3) → [1, 2, 3]
+pop()   → returns 3, stack is [1, 2]
+```
+
+### **Core Stack Methods**
+
+The Deque interface (which provides stack functionality) includes:
+
+| **Operation** | **Method** | **Behaviour** |
+| --- | --- | --- |
+| Push | `push(e)` | Add to top (front) |
+| Pop | `pop()` | Remove & return top, throws if empty |
+| Peek | `peek()` | View top without removing, returns null if empty |
+| Check Empty | `isEmpty()` | Boolean check |
+| Size | `size()` | Number of elements |
+
+### **Basic Stack Example**
+
+```java
+Deque<Integer> stack = new ArrayDeque<>();
+
+// Push
+stack.push(10);
+stack.push(20);
+stack.push(30);
+
+// Peek
+System.out.println(stack.peek()); // 30
+
+// Pop
+System.out.println(stack.pop()); // 30
+System.out.println(stack.pop()); // 20
+
+// Check if empty
+if (!stack.isEmpty()) {
+    System.out.println(stack.peek()); // 10
+}
+```
+
+* * *
+
+## **The Modern Java Collection Hierarchy**
+
+### **1\. ArrayDeque ✅ Recommended**
+
+`ArrayDeque` is your go-to choice for most stack and queue needs. It implements the `Deque` interface, allowing it to work as both.
+
+**Why it's the best:**
+
+*   Uses a resizable array internally (better cache locality)
+
+*   O(1) operations for push, pop, enqueue, dequeue
+
+*   No boxing overhead like `Stack` class
+
+*   Works as Stack, Queue, or Deque seamlessly
+
+
+**Example: Using as Both Stack and Queue**
+
+```java
+Deque<Integer> dq = new ArrayDeque<>();
+
+// Using as QUEUE (FIFO)
+dq.offerLast(1);   // enqueue at back
+dq.offerLast(2);
+dq.offerLast(3);
+System.out.println(dq.pollFirst()); // 1 (dequeue from front)
+
+// Using as STACK (LIFO)
+dq.push(10);       // push to front (top)
+dq.push(20);
+System.out.println(dq.pop());  // 20 (pop from front)
+
+// Get explicit about your intent
+dq.addFirst(100);  // same as push()
+dq.removeFirst();  // same as pop()
+dq.addLast(200);   // enqueue
+dq.removeLast();   // remove from back
+```
+
+### **2\. PriorityQueue — Ordered by Priority**
+
+Unlike a standard queue, `PriorityQueue` returns elements in sorted order (by a min-heap), not insertion order. Perfect when you need the "most important" element first.
+
+**Key characteristics:**
+
+*   Default: min-heap (smallest element first)
+
+*   Custom comparators supported
+
+*   O(log n) insertion and removal
+
+*   NOT suitable for stack behaviour
+
+
+**Example: Min-Heap Priority Queue**
+
+```java
+PriorityQueue<Integer> pq = new PriorityQueue<>();
+pq.offer(30);
+pq.offer(10);
+pq.offer(20);
+
+System.out.println(pq.poll()); // 10 (smallest)
+System.out.println(pq.poll()); // 20
+System.out.println(pq.poll()); // 30
+```
+
+**Example: Max-Heap with Custom Comparator**
+
+```java
+PriorityQueue<Integer> maxHeap =
+    new PriorityQueue<>((a, b) -> Integer.compare(b, a));
+
+maxHeap.offer(30);
+maxHeap.offer(10);
+maxHeap.offer(20);
+
+System.out.println(maxHeap.poll()); // 30 (largest)
+System.out.println(maxHeap.poll()); // 20
+System.out.println(maxHeap.poll()); // 10
+```
+
+**Example: Objects with Priority**
+
+```java
+class Task implements Comparable<Task> {
+    String name;
+    int priority;
+
+    public Task(String name, int priority) {
+        this.name = name;
+        this.priority = priority;
+    }
+
+    @Override
+    public int compareTo(Task other) {
+        return Integer.compare(this.priority, other.priority);
+    }
+}
+
+PriorityQueue<Task> taskQueue = new PriorityQueue<>();
+taskQueue.offer(new Task("Email", 3));
+taskQueue.offer(new Task("Report", 1));
+taskQueue.offer(new Task("Meeting", 2));
+
+// Process highest priority first
+while (!taskQueue.isEmpty()) {
+    Task t = taskQueue.poll();
+    System.out.println("Processing: " + t.name + " (priority: " + t.priority + ")");
+}
+// Output:
+// Processing: Report (priority: 1)
+// Processing: Meeting (priority: 2)
+// Processing: Email (priority: 3)
+```
+
+### **3\. LinkedList — The Flexible One**
+
+`LinkedList` implements both `List` and `Deque`, making it useful when you need queue/stack operations alongside indexed access.
+
+**When to use:**
+
+*   Need both queue/stack AND list operations
+
+*   Comfortable with slower performance than ArrayDeque
+
+
+**Example:**
+
+```java
+Deque<String> linkedStack = new LinkedList<>();
+linkedStack.push("First");
+linkedStack.push("Second");
+
+// Can also use as List
+List<String> list = linkedStack;
+System.out.println(list.get(0)); // Access by index
+```
+
+**Performance consideration:** LinkedList allocates a node object per element, causing memory overhead and cache misses. Stick with ArrayDeque unless you specifically need List methods.
+
+### **4\. BlockingQueue — For Multithreading**
+
+When multiple threads need to share a queue safely, `BlockingQueue` is your solution. It lives in `java.util.concurrent` and provides thread-safe, blocking operations.
+
+**Key methods:**
+
+*   `put(e)` — Insert, blocks if queue is full
+
+*   `take()` — Remove from front, blocks if queue is empty
+
+*   `offer(e, timeout, unit)` — Insert with timeout
+
+*   `poll(timeout, unit)` — Remove with timeout
+
+
+**Classic use case: Producer-Consumer Pattern**
+
+```java
+BlockingQueue<Integer> queue = new ArrayBlockingQueue<>(10);
+
+// Producer thread
+Thread producer = new Thread(() -> {
+    try {
+        for (int i = 1; i <= 5; i++) {
+            System.out.println("Producing: " + i);
+            queue.put(i);
+            Thread.sleep(500);
+        }
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+});
+
+// Consumer thread
+Thread consumer = new Thread(() -> {
+    try {
+        while (true) {
+            Integer value = queue.take();
+            System.out.println("Consuming: " + value);
+            Thread.sleep(1000);
+        }
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+});
+
+producer.start();
+consumer.start();
+```
+
+### **5\. Thread-Safe Variants**
+
+For multithreading without blocking:
+
+```java
+// Non-blocking, thread-safe stack
+Deque<Integer> safeStack = new ConcurrentLinkedDeque<>();
+safeStack.push(1);
+safeStack.pop();
+
+// Non-blocking, thread-safe queue
+Queue<Integer> safeQueue = new ConcurrentLinkedQueue<>();
+safeQueue.offer(1);
+safeQueue.poll();
+
+// Blocking, thread-safe double-ended
+Deque<Integer> blockingDeque = new LinkedBlockingDeque<>(10);
+blockingDeque.putFirst(1);
+blockingDeque.takeFirst();
+```
+
+* * *
+
+## **When to Use What**
+
+Here's a decision tree to guide your choice:
+
+| **Scenario** | **Best Choice** | **Why** |
+| --- | --- | --- |
+| Simple FIFO queue | `ArrayDeque` | Fastest, simple |
+| Simple LIFO stack | `ArrayDeque` | Fastest, simple |
+| Need element priority | `PriorityQueue` | Ordered by comparison |
+| Need both List + Queue | `LinkedList` | Supports both interfaces |
+| Single-threaded BFS | `ArrayDeque` | Perfect for graph traversal |
+| Single-threaded DFS | `ArrayDeque` | Perfect for tree traversal |
+| Producer-consumer pattern | `BlockingQueue` | Thread-safe, blocking |
+| Multiple threads, no blocking | `ConcurrentLinkedQueue` | Lock-free, efficient |
+| Need priority in multithreading | `PriorityBlockingQueue` | Thread-safe priority queue |
+| Avoid forever | `Stack` (legacy) | Use `ArrayDeque` instead |
+
+* * *
+
+## **Real-World Examples & Patterns**
+
+### **Pattern 1: Balanced Parentheses**
+
+A classic stack problem: check if brackets are balanced.
+
+```java
+public boolean isBalanced(String s) {
+    Deque<Character> stack = new ArrayDeque<>();
+    Map<Character, Character> pairs = new HashMap<>();
+    pairs.put(')', '(');
+    pairs.put(']', '[');
+    pairs.put('}', '{');
+
+    for (char c : s.toCharArray()) {
+        if (pairs.containsValue(c)) {
+            // Opening bracket
+            stack.push(c);
+        } else if (pairs.containsKey(c)) {
+            // Closing bracket
+            if (stack.isEmpty() || !stack.pop().equals(pairs.get(c))) {
+                return false;
+            }
+        }
+    }
+    return stack.isEmpty();
+}
+
+// Usage
+System.out.println(isBalanced("({[]})")); // true
+System.out.println(isBalanced("({[}])")); // false
+```
+
+### **Pattern 2: BFS (Breadth-First Search)**
+
+Queues are essential for BFS in graphs and trees.
+
+```java
+class TreeNode {
+    int val;
+    TreeNode left, right;
+    TreeNode(int val) { this.val = val; }
+}
+
+public List<Integer> levelOrderBFS(TreeNode root) {
+    List<Integer> result = new ArrayList<>();
+    if (root == null) return result;
+
+    Queue<TreeNode> queue = new ArrayDeque<>();
+    queue.offer(root);
+
+    while (!queue.isEmpty()) {
+        TreeNode node = queue.poll();
+        result.add(node.val);
+
+        if (node.left != null) queue.offer(node.left);
+        if (node.right != null) queue.offer(node.right);
+    }
+    return result;
+}
+```
+
+### **Pattern 3: DFS with Explicit Stack**
+
+Stacks replace recursion in iterative DFS.
+
+```java
+public List<Integer> postOrderDFS(TreeNode root) {
+    List<Integer> result = new ArrayList<>();
+    if (root == null) return result;
+
+    Deque<TreeNode> stack = new ArrayDeque<>();
+    stack.push(root);
+    TreeNode prev = null;
+
+    while (!stack.isEmpty()) {
+        TreeNode curr = stack.peek();
+
+        // Going down the tree
+        if (prev == null || prev.left == curr || prev.right == curr) {
+            if (curr.left != null) {
+                stack.push(curr.left);
+            } else if (curr.right != null) {
+                stack.push(curr.right);
+            } else {
+                result.add(curr.val);
+                stack.pop();
+            }
+        }
+        // Going up (left subtree done)
+        else if (curr.left == prev) {
+            if (curr.right != null) {
+                stack.push(curr.right);
+            } else {
+                result.add(curr.val);
+                stack.pop();
+            }
+        }
+        // Going up (right subtree done)
+        else if (curr.right == prev) {
+            result.add(curr.val);
+            stack.pop();
+        }
+
+        prev = curr;
+    }
+    return result;
+}
+```
+
+### **Pattern 4: Monotonic Stack**
+
+A clever pattern for "Next Greater Element" problems.
+
+```java
+public int[] nextGreaterElement(int[] nums) {
+    int[] result = new int[nums.length];
+    Deque<Integer> stack = new ArrayDeque<>();
+
+    // Process from right to left
+    for (int i = nums.length - 1; i >= 0; i--) {
+        // Pop smaller elements
+        while (!stack.isEmpty() && stack.peek() <= nums[i]) {
+            stack.pop();
+        }
+
+        // Top of stack is next greater (or -1 if empty)
+        result[i] = stack.isEmpty() ? -1 : stack.peek();
+
+        // Push current element
+        stack.push(nums[i]);
+    }
+
+    return result;
+}
+
+// Usage
+int[] nums = {1, 2, 1};
+int[] result = nextGreaterElement(nums);
+// result = {2, -1, 2}
+```
+
+### **Pattern 5: Undo/Redo Functionality**
+
+Stacks are perfect for undo/redo systems.
+
+```java
+class TextEditor {
+    private Deque<String> undoStack = new ArrayDeque<>();
+    private Deque<String> redoStack = new ArrayDeque<>();
+    private String currentText = "";
+
+    public void type(String text) {
+        undoStack.push(currentText);
+        currentText += text;
+        redoStack.clear(); // Clear redo when new action is performed
+    }
+
+    public void undo() {
+        if (!undoStack.isEmpty()) {
+            redoStack.push(currentText);
+            currentText = undoStack.pop();
+        }
+    }
+
+    public void redo() {
+        if (!redoStack.isEmpty()) {
+            undoStack.push(currentText);
+            currentText = redoStack.pop();
+        }
+    }
+
+    public String getText() {
+        return currentText;
+    }
+}
+```
+
+* * *
+
+## **Performance Considerations**
+
+Let's compare performance characteristics:
+
+| **Operation** | **ArrayDeque** | **LinkedList** | **PriorityQueue** | **BlockingQueue** |
+| --- | --- | --- | --- | --- |
+| Push/Pop | O(1) | O(1) | O(log n) | O(log n) |
+| Enqueue/Dequeue | O(1) | O(1) | O(log n) | O(log n) |
+| Peek | O(1) | O(1) | O(1) | O(1) |
+| Space | Better (array) | Worse (nodes) | O(n) | O(n) |
+| Thread-safe | No | No | No | Yes |
+
+**Memory Overhead:**
+
+```java
+// ArrayDeque: Single array + metadata
+ArrayDeque<Integer> ad = new ArrayDeque<>();
+// Memory: ~8 bytes per element (in the array)
+
+// LinkedList: Node objects
+LinkedList<Integer> ll = new LinkedList<>();
+// Memory: ~32+ bytes per element (object + references)
+
+// PriorityQueue: Array + heap structure
+PriorityQueue<Integer> pq = new PriorityQueue<>();
+// Memory: ~8 bytes per element (in the array)
+```
+
+**Benchmark Insight:** For most applications, `ArrayDeque` outperforms `LinkedList` due to better cache locality and less memory overhead.
+
+* * *
+
+## **Multithreading with Collections**
+
+### **Safe Single-Threaded Collections Made Thread-Safe**
+
+If you need multiple threads accessing a queue, you have options:
+
+```java
+// Option 1: Synchronized wrapper (simple, but slow)
+Queue<Integer> syncQueue =
+    Collections.synchronizedQueue(new ArrayDeque<>());
+
+// Option 2: ConcurrentLinkedQueue (lock-free, fast)
+Queue<Integer> concQueue = new ConcurrentLinkedQueue<>();
+
+// Option 3: BlockingQueue (blocking, ideal for producer-consumer)
+BlockingQueue<Integer> bq = new ArrayBlockingQueue<>(10);
+```
+
+### **Thread-Safe Stack/Deque**
+
+```java
+// Option 1: Collections wrapper
+Deque<Integer> syncStack =
+    Collections.synchronizedDeque(new ArrayDeque<>());
+
+// Option 2: ConcurrentLinkedDeque (lock-free)
+Deque<Integer> concStack = new ConcurrentLinkedDeque<>();
+
+// Option 3: LinkedBlockingDeque (blocking, with timeout support)
+Deque<Integer> blockingStack = new LinkedBlockingDeque<>(10);
+```
+
+### **When to Use Each**
+
+*   **Collections.synchronized**\* — Simple logic, willing to accept lock contention
+
+*   **Concurrent**\* — High-concurrency scenarios, no blocking needed
+
+*   **BlockingQueue/Deque** — Producer-consumer, work queues, thread coordination
+
+
+* * *
+
+## **Common Pitfalls & Best Practices {#pitfalls}**
+
+### **❌ Pitfall 1: Using the Legacy** `Stack` **Class**
+
+```java
+// DON'T DO THIS
+Stack<Integer> stack = new Stack<>();
+
+// DO THIS INSTEAD
+Deque<Integer> stack = new ArrayDeque<>();
+```
+
+The `Stack` class is a legacy subclass of `Vector` with synchronized methods you don't need. `ArrayDeque` is faster and more idiomatic.
+
+### **❌ Pitfall 2: Mixing Up Queue Behavior**
+
+```java
+// WRONG: PriorityQueue is NOT FIFO
+PriorityQueue<Integer> pq = new PriorityQueue<>();
+pq.offer(30);
+pq.offer(10);
+pq.offer(20);
+System.out.println(pq.poll()); // 10, not 30!
+
+// RIGHT: Use ArrayDeque for FIFO
+Queue<Integer> queue = new ArrayDeque<>();
+queue.offer(30);
+queue.offer(10);
+queue.offer(20);
+System.out.println(queue.poll()); // 30 (FIFO)
+```
+
+### **❌ Pitfall 3: Not Checking Empty Before Pop**
+
+```java
+// DANGEROUS
+int top = stack.pop(); // Throws if empty
+
+// SAFE
+if (!stack.isEmpty()) {
+    int top = stack.pop();
+}
+
+// ALTERNATIVE: Using peek/poll
+Integer top = stack.peek(); // Returns null if empty
+```
+
+### **❌ Pitfall 4: Choosing** `LinkedList` **When** `ArrayDeque` **is Better**
+
+```java
+// SLOWER: Allocates a node per element
+Deque<Integer> stack = new LinkedList<>();
+
+// FASTER: Uses array, better cache locality
+Deque<Integer> stack = new ArrayDeque<>();
+```
+
+Use `LinkedList` only if you also need `List` methods like `get(index)`.
+
+### **✅ Best Practice 1: Be Explicit with Method Names**
+
+```java
+// Good: Intent is clear
+Deque<Integer> stack = new ArrayDeque<>();
+stack.push(1);
+stack.pop();
+
+Queue<Integer> queue = new ArrayDeque<>();
+queue.offer(1);
+queue.poll();
+
+// Also good: Using Deque methods explicitly
+Deque<Integer> dq = new ArrayDeque<>();
+dq.addFirst(1);   // Push
+dq.removeFirst(); // Pop
+dq.addLast(1);    // Enqueue
+dq.removeFirst(); // Dequeue
+```
+
+### **✅ Best Practice 2: Handle Empty Checks Consistently**
+
+```java
+// Pattern 1: Check before operations
+if (!stack.isEmpty()) {
+    process(stack.pop());
+}
+
+// Pattern 2: Use null-safe methods
+Integer value = stack.peek(); // Returns null if empty
+if (value != null) {
+    process(value);
+}
+```
+
+### **✅ Best Practice 3: Choose Thread-Safe Implementation Carefully**
+
+```java
+// Low contention, simple logic
+Queue<Task> queue = new ArrayDeque<>();
+synchronized(queue) {
+    queue.offer(new Task());
+}
+
+// High concurrency
+Queue<Task> queue = new ConcurrentLinkedQueue<>();
+queue.offer(new Task());
+
+// Producer-consumer pattern
+BlockingQueue<Task> queue = new ArrayBlockingQueue<>(100);
+producer.put(new Task());
+consumer.take();
+```
+
+* * *
+
+## **Summary: key takeaways**
+
+Here are the key takeaways to remember:
+
+1.  **Use** `ArrayDeque` **by default** for both stacks and queues—it's fast and versatile.
+
+2.  **Never use the legacy** `Stack` **class**—use `Deque` with `ArrayDeque` instead.
+
+3.  **Know your intent**:
+
+    *   FIFO → `ArrayDeque` with queue methods
+
+    *   LIFO → `ArrayDeque` with stack methods
+
+    *   Priority → `PriorityQueue`
+
+    *   Multithreaded → `BlockingQueue` or concurrent variants
+
+4.  `PriorityQueue` **is not FIFO**—elements come out by priority, not insertion order.
+
+5.  `LinkedList` **has overhead**—only use it if you also need `List` operations.
+
+6.  **For multithreading**, choose:
+
+    *   `BlockingQueue` for producer-consumer patterns
+
+    *   `ConcurrentLinkedQueue` for high-concurrency, non-blocking scenarios
+
+    *   `Collections.synchronized*` wrappers only for simple cases
+
+7.  **Always check for empty** before calling `pop()` or `remove()` unless you want an exception.
+
+8.  **Prefer safe methods**: Use `offer()`, `poll()`, and `peek()` over `add()`, `remove()`, and `element()` for bounded or concurrent scenarios.
+
+
+* * *

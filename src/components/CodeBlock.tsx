@@ -21,7 +21,7 @@ const CodeBlock = ({ children, className }: { children: string; className?: stri
       >
         {copied ? 'Copied!' : 'Copy'}
       </button>
-      <Highlight theme={themes.vsDark} code={children.trim()} language={language}>
+      <Highlight theme={themes.dracula} code={children.trim()} language={language}>
         {({ className: highlightClass, style, tokens, getLineProps, getTokenProps }) => (
           <pre className={`${highlightClass} p-4 rounded-lg overflow-x-auto font-mono text-sm`} style={style}>
             {tokens.map((line, i) => (

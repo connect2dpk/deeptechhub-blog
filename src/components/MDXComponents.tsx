@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import CodeBlock from './CodeBlock';
+import ZoomableImage from './ZoomableImage';
+import MermaidComponent from './MermaidComponent';
 
 export const MDXComponents = {
   h1: ({ ...props }: any) => (
@@ -32,6 +34,9 @@ export const MDXComponents = {
         </code>
       );
     }
+    if (className === 'language-mermaid') {
+      return <MermaidComponent chart={String(children)} />;
+    }
     return <CodeBlock className={className}>{children}</CodeBlock>;
   },
   pre: ({ children }: any) => children, // Handled by CodeBlock
@@ -39,22 +44,22 @@ export const MDXComponents = {
     <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 dark:bg-blue-900/20 italic text-gray-700 dark:text-gray-300" {...props} />
   ),
   ul: ({ ...props }: any) => (
-    <ul className="list-disc list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2" {...props} />
+    <ul className="list-disc pl-6 mb-4 text-gray-700 dark:text-gray-300 space-y-1" {...props} />
   ),
   ol: ({ ...props }: any) => (
-    <ol className="list-decimal list-inside mb-4 text-gray-700 dark:text-gray-300 space-y-2" {...props} />
+    <ol className="list-decimal pl-6 mb-4 text-gray-700 dark:text-gray-300 space-y-1" {...props} />
   ),
   li: ({ ...props }: any) => (
-    <li className="ml-2" {...props} />
+    <li {...props} />
   ),
   img: (props: any) => (
-    <Image
-      className="rounded-lg my-4 w-full"
-      {...props}
-      alt={props.alt}
-      width={800}
-      height={400}
-    />
+    <div className="my-4 flex justify-center">
+      <ZoomableImage
+        src={props.src}
+        alt={props.alt || ''}
+        className="rounded-lg max-w-full h-auto"
+      />
+    </div>
   ),
   table: ({ ...props }: any) => (
     <div className="overflow-x-auto mb-4">
@@ -66,5 +71,11 @@ export const MDXComponents = {
   ),
   td: ({ ...props }: any) => (
     <td className="border border-gray-300 dark:border-gray-700 p-3" {...props} />
+  ),
+  figure: ({ ...props }: any) => (
+    <figure className="my-6 flex flex-col items-center" {...props} />
+  ),
+  figcaption: ({ ...props }: any) => (
+    <figcaption className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2 italic" {...props} />
   ),
 };

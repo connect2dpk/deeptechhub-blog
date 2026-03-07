@@ -1,0 +1,526 @@
+---
+title: "Securing Chrome Extension using Auth0 Authentication"
+description: "Step by step guide for implementing Authentication using Auth0 in chrome extension"
+publishedAt: "2025-10-05"
+author: "DeepTechHub"
+category: "security"
+readingTime: "10 min read"
+tags: ["Auth0", "Security", "chrome-extension"]
+cover: "/images/blog/cover-chrome-ext-auth.png"
+---
+
+Chrome Extensions are powerful tools that enhance our browsing experience. But when your extension needs to interact with user-specific data or private APIs, you need a robust and secure authentication system. Rolling your own auth can be risky and time-consuming.
+
+That's where **Auth0** comes in. It handles the complexities of security for you, providing features like social logins, multi-factor authentication, and secure token management.
+
+In this article, we'll implement a complete authentication layer in a Chrome Extension using Auth0 with PKCE(Public Key for Code Exchange) flow and proper token management.
+
+## **What We'll Build**
+
+We'll create a Chrome Extension with a popup that has two states:
+
+1.  A "Log In" button for unauthenticated users
+
+2.  A welcome message and "Log Out" button for authenticated users
+
+3.  Advanced features: token refresh, session management, and environment configuration
+
+
+## **Prerequisites**
+
+*   Basic understanding of HTML, CSS, and JavaScript
+
+*   [Chrome browser](https://www.google.com/chrome/)
+
+*   [Auth0 account](https://auth0.com/signup) (free tier available)
+
+
+## **Step 1: Getting a Static Extension ID**
+
+Chrome generates random Extension IDs for unpacked extensions, which causes problems for Auth0 whitelisting. Here's how to get a consistent ID:
+
+### **Method 1: Chrome Developer Dashboard (Recommended)**
+
+1.  Package your extension directory into a `.zip` file
+
+2.  Upload to [Chrome Developer Dashboard](https://chrome.google.com/webstore/developer/dashboard)
+
+3.  Go to the "Package" tab and click "View public key"
+
+4.  Copy the public key (remove newlines to create a single string)
+
+5.  Add it to your `manifest.json`:
+
+
+```json
+{
+  "manifest_version": 3,
+  "name": "Your Extension",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAYourPublicKeyStringHere..."
+}
+```
+
+*This ensures Chrome uses the same extension ID every time you load the unpacked extension by providing a fixed public key.*
+
+## **Step 2: Auth0 Application Configuration**
+
+1.  **Create Application**: In Auth0 Dashboard, go to **Applications > Applications > Create Application**
+
+2.  **Choose Type**: Select **"Native"** (Chrome Extensions are public clients)
+
+3.  **Configure Settings**:
+
+
+```plaintext
+Application Type: Native
+Allowed Callback URLs:
+  https://<EXTENSION_ID>.chromiumapp.org/auth0,
+  https://<EXTENSION_ID>.chromiumapp.org/
+
+Allowed Logout URLs:
+  https://<EXTENSION_ID>.chromiumapp.org/,
+  chrome-extension://<EXTENSION_ID>/post-logout
+
+Allowed Web Origins:
+  chrome-extension://<EXTENSION_ID>,
+  https://<EXTENSION_ID>.chromiumapp.org
+```
+
+**Note**: Replace `<EXTENSION_ID>` with your actual extension ID.
+
+*These URLs tell Auth0 which origins are allowed to use the authentication service, preventing unauthorized applications from using your Auth0 setup.*
+
+## **Step 3: Project Structure and Configuration**
+
+### **Environment Configuration**
+
+Create `environment.js` for multi-environment support:
+
+```json
+// environment.js
+export const ENVIRONMENTS = {
+  dev: {
+    key: 'dev',
+    label: 'Development',
+    apiBaseUrl: 'https://api.dev.example.com',
+    auth0: {
+      domain: 'dev-tenant.auth0.com',
+      clientId: 'DEV_CLIENT_ID',
+      audience: 'https://api.dev.example.com',
+      scopes: 'openid profile email offline_access'
+    },
+    applicationId: '24c15a98-d4ff-3127-81ct-e0592e913f8d'
+  },
+  qa: {
+    key: 'qa',
+    label: 'QA',
+    apiBaseUrl: 'https://api.qa.example.com',
+    auth0: {
+      domain: 'qa-tenant.auth0.com',
+      clientId: 'QA_CLIENT_ID',
+      audience: 'https://api.qa.example.com',
+      scopes: 'openid profile email offline_access'
+    },
+    applicationId: '34c15a98-d4ff-3127-81ct-e0592e913f8d'
+  },
+  prod: {
+    key: 'prod',
+    label: 'Production',
+    apiBaseUrl: 'https://api.prod.example.com',
+    auth0: {
+      domain: 'prod-tenant.auth0.com',
+      clientId: 'PROD_CLIENT_ID',
+      audience: 'https://api.prod.example.com',
+      scopes: 'openid profile email offline_access'
+    },
+    applicationId: '44c15a98-d4ff-3127-81ct-e0592e913f8d'
+  }
+};
+
+export const DEFAULT_ENV = 'dev';
+export function getEnvironmentConfig(envKey) {
+  return ENVIRONMENTS[envKey] || ENVIRONMENTS[DEFAULT_ENV];
+}
+```
+
+*This configuration object allows you to easily switch between different environments (dev/qa/prod) with their specific Auth0 and API settings.*
+
+### **Updated Manifest.json**
+
+```json
+{
+  "manifest_version": 3,
+  "name": "Auth0 Protected Extension",
+  "description": "Chrome Extension with Auth0 Authentication",
+  "version": "1.0",
+  "key": "YourPublicKeyHere",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Auth0 Example"
+  },
+  "permissions": [
+    "scripting",
+    "storage",
+    "identity",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.auth0.com/*",
+    "https://api.dev.example.com/*",
+    "https://api.qa.example.com/*",
+    "https://api.prod.example.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
+```
+
+*The manifest declares necessary permissions: 'identity' for OAuth flows, 'storage' for token persistence, and host permissions for Auth0 and your APIs.*
+
+### **Constants Definition**
+
+```json
+// constants.js
+export const STORAGE_KEYS = {
+  AUTH_TOKEN: 'auth_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER_PROFILE: 'user_profile',
+  ENVIRONMENT: 'environment',
+  AUTH_TIME: 'auth_time'
+};
+
+export const EVENTS = {
+  AUTH_CHANGED: 'auth.changed',
+  AUTH_TOKEN_EXPIRING: 'auth.token_expiring',
+  AUTH_TOKEN_REFRESH: 'auth.token_refresh',
+  AUTH_LOGIN_REQUIRED: 'auth.login_required'
+};
+```
+
+*Centralized constants prevent typos and make the code more maintainable by providing single source of truth for storage keys and event names.*
+
+## **Step 4: Core Authentication Service**
+
+### **Auth Service Implementation**
+
+```javascript
+// auth-service.js
+import { getEnvironmentConfig } from './environment.js';
+
+export class AuthService {
+  constructor() {
+    this.envConfig = getEnvironmentConfig('dev');
+    this._loginInProgress = false;
+  }
+
+  async login({ force = false } = {}) {
+    if (this._loginInProgress) {
+      throw new Error('login_in_progress');
+    }
+
+    this._loginInProgress = true;
+
+    try {
+      const { domain, clientId, audience, scopes } = this.envConfig.auth0;
+      const redirectUri = chrome.identity.getRedirectURL();
+
+      // PKCE Code Verifier and Challenge
+      const codeVerifier = this.generateCodeVerifier();
+      const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+
+      const authUrl = `https://${domain}/authorize?` + new URLSearchParams({
+        response_type: 'code',
+        code_challenge_method: 'S256',
+        code_challenge: codeChallenge,
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        scope: scopes,
+        audience: audience,
+        ...(force && { prompt: 'login' })
+      });
+
+      // Launch Auth0 Universal Login
+      const callbackUrl = await new Promise((resolve, reject) => {
+        chrome.identity.launchWebAuthFlow(
+          { url: authUrl, interactive: true },
+          (url) => chrome.runtime.lastError ?
+            reject(chrome.runtime.lastError) : resolve(url)
+        );
+      });
+
+      const code = this.extractCodeFromCallback(callbackUrl);
+
+      // Exchange code for tokens
+      const tokens = await this.exchangeCodeForTokens(code, codeVerifier, redirectUri);
+
+      await this.storeTokens(tokens);
+      await this.fetchAndStoreUserProfile(tokens.access_token);
+
+      return true;
+    } finally {
+      this._loginInProgress = false;
+    }
+  }
+
+  async exchangeCodeForTokens(code, codeVerifier, redirectUri) {
+    const { domain, clientId } = this.envConfig.auth0;
+
+    const response = await fetch(`https://${domain}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code_verifier: codeVerifier,
+        code: code,
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    if (!response.ok) throw new Error('Token exchange failed');
+    return await response.json();
+  }
+
+  generateCodeVerifier() {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  async generateCodeChallenge(verifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  extractCodeFromCallback(callbackUrl) {
+    const url = new URL(callbackUrl);
+    return url.searchParams.get('code') ||
+           new URLSearchParams(url.hash.substring(1)).get('code');
+  }
+
+  async storeTokens(tokens) {
+    await chrome.storage.local.set({
+      auth_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      auth_time: Date.now()
+    });
+  }
+}
+```
+
+*This service implements the PKCE OAuth flow: generates secure code verifier/challenge, launches Auth0 login, exchanges authorization code for tokens, and securely stores them.*
+
+## **Step 5: Authentication Manager**
+
+```javascript
+// auth-manager.js
+import { AuthService } from './auth-service.js';
+import { EVENTS, STORAGE_KEYS } from './constants.js';
+
+class AuthManager {
+  constructor() {
+    this.authService = new AuthService();
+    this._refreshTimer = null;
+    this._SESSION_MAX_AGE_MS = 3600 * 1000; // 1 hour
+  }
+
+  async login({ force = false } = {}) {
+    try {
+      const success = await this.authService.login({ force });
+      if (success) {
+        await this.scheduleTokenRefresh();
+        await this.scheduleSessionExpiry();
+      }
+      return { success };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async scheduleTokenRefresh() {
+    const token = await chrome.storage.local.get(STORAGE_KEYS.AUTH_TOKEN);
+    if (!token) return;
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiresAt = payload.exp * 1000;
+    const refreshTime = expiresAt - Date.now() - (5 * 60 * 1000); // Refresh 5 min before expiry
+
+    this._refreshTimer = setTimeout(async () => {
+      await this.refreshTokens();
+    }, Math.max(refreshTime, 0));
+  }
+
+  async refreshTokens() {
+    const { refresh_token } = await chrome.storage.local.get(STORAGE_KEYS.REFRESH_TOKEN);
+    if (!refresh_token) return null;
+
+    const { domain, clientId } = this.envConfig.auth0;
+
+    const response = await fetch(`https://${domain}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        refresh_token: refresh_token
+      }),
+    });
+
+    if (response.ok) {
+      const tokens = await response.json();
+      await this.storeTokens(tokens);
+      await this.scheduleTokenRefresh();
+      return tokens.access_token;
+    }
+    return null;
+  }
+}
+```
+
+*The AuthManager orchestrates the authentication flow, handles token refresh scheduling, and manages session lifecycle including automatic token renewal before expiry.*
+
+## **Step 6: UI Integration**
+
+### **Popup HTML**
+
+```xml
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <div class="auth-panel">
+      <div class="brand-logo">
+        <img src="icons/icon-48.png" alt="App Logo" />
+      </div>
+      <h2>My Secure App</h2>
+
+      <div id="login-view">
+        <p>Please sign in to continue</p>
+        <button id="loginBtn" class="primary">Sign In</button>
+      </div>
+
+      <div id="authenticated-view" style="display: none;">
+        <p>Welcome, <span id="userName"></span>!</p>
+        <button id="logoutBtn" class="secondary">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
+```
+
+*This HTML structure provides two view states: login prompt for unauthenticated users and welcome message for authenticated users, with simple show/hide toggling.*
+
+### **Popup JavaScript**
+
+```javascript
+// popup.js
+import { authManager } from './auth-manager.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const loginView = document.getElementById('login-view');
+  const authenticatedView = document.getElementById('authenticated-view');
+  const userName = document.getElementById('userName');
+
+  // Check initial auth state
+  const authState = await authManager.getState();
+  updateUI(authState.authenticated, authState.profile);
+
+  loginBtn.addEventListener('click', async () => {
+    const result = await authManager.login({ force: false });
+    if (result.success) {
+      const newState = await authManager.getState();
+      updateUI(newState.authenticated, newState.profile);
+    }
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    await authManager.logout();
+    updateUI(false, null);
+  });
+
+  function updateUI(authenticated, profile) {
+    if (authenticated) {
+      loginView.style.display = 'none';
+      authenticatedView.style.display = 'block';
+      userName.textContent = profile?.name || profile?.email || 'User';
+    } else {
+      loginView.style.display = 'block';
+      authenticatedView.style.display = 'none';
+    }
+  }
+});
+```
+
+*The popup script handles UI interactions, checks authentication state on load, and updates the interface dynamically based on user authentication status.*
+
+## **Key Security Considerations**
+
+1.  **PKCE Flow**: Essential for public clients like Chrome Extensions to prevent authorization code interception attacks
+
+2.  **Token Storage**: Use `chrome.storage.local` instead of localStorage for better security
+
+3.  **Session Management**: Implement absolute session timeout (1 hour) regardless of token refresh
+
+4.  **Secure Logout**: Clear all local storage and invoke Auth0's logout endpoint
+
+5.  **HTTPS Only**: Ensure all API calls use HTTPS and validate Auth0 domains
+
+
+## **Testing and Debugging**
+
+1.  **Load Extension**: Go to `chrome://extensions/`, enable Developer Mode, and Load Unpacked
+
+2.  **Check Console**: Use Chrome DevTools for debugging
+
+3.  **Network Inspection**: Monitor Auth0 API calls in Network tab
+
+4.  **Storage Inspection**: Verify token storage in Application tab
+
+
+## **Conclusion**
+
+This implementation provides a production-ready authentication system for Chrome Extensions with:
+
+*   ✅ **Secure Auth0 Integration** with PKCE flow
+
+*   ✅ **Multi-environment support** for dev/qa/prod
+
+*   ✅ **Automatic token refresh** and session management
+
+*   ✅ **Proper error handling** and user feedback
+
+*   ✅ **Clean architecture** with separation of concerns
+
+
+The solution handles the complexities of OAuth 2.0 in a Chrome Extension context while maintaining security best practices. You can extend this foundation with additional features like role-based access control, API integration, or enhanced UI components.
+
+* * *
+
+**Happy Coding!** 🚀
+
+## **Additional Resources**
+
+*   [Auth0 Documentation](https://auth0.com/docs/)
+
+*   [Chrome Extension Identity API](https://developer.chrome.com/docs/extensions/reference/identity/)
+
+*   [OAuth 2.0 PKCE Specification](https://tools.ietf.org/html/rfc7636)

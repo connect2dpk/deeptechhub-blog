@@ -114,7 +114,7 @@ export default async function ArticlePage({
 
       {/* Article Content */}
       <div className="prose dark:prose-invert max-w-none">
-        <MDXRemote source={post.content} components={MDXComponents} />
+        <MDXRemote source={post.content} components={MDXComponents} options={{ mdxOptions: { jsx: false, format: 'md' } }} />
       </div>
 
       {/* Related Articles CTA */}

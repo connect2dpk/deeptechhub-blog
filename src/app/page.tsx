@@ -21,7 +21,7 @@ export const metadata = {
 
 export default async function Home() {
   const posts = await getAllPosts();
-  const featuredPosts = posts.slice(0, 2);
+  const featuredPosts = posts.filter(post => post.featured).slice(0, 6);
 
   return (
     <div>

@@ -9,6 +9,7 @@ export interface Post {
   content: string;
   tags?: string[];
   cover?: string;
+  featured?: boolean;
 }
 
 export interface PostMeta {
@@ -19,4 +20,5 @@ export interface PostMeta {
   category: string;
   tags?: string[];
   cover?: string;
+  featured?: boolean;
 }

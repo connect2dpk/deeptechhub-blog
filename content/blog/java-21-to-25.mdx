@@ -1,0 +1,424 @@
+---
+title: "🔥 11 Most Useful Java Features From Java 21 To 25"
+description: "Collection of most useful features added in Java 21 to 25"
+publishedAt: "2025-11-25"
+author: "DeepTechHub"
+category: "java"
+readingTime: "7 min read"
+tags: ["java"]
+cover: "/images/blog/java-21-to-25.png"
+featured: true
+---
+
+Java has evolved rapidly in recent releases. Between Java 21 (LTS) and Java 25(LTS), several new powerful features have been added that help in writing cleaner, safer, and more expressive code.
+
+In this article, I have picked the **most practical and useful Java features** added between Java 21 → 25, along with real world examples to explain them in easy way.
+
+---
+
+## **✅ 1. Compact Source Files (Java 25)**
+
+Compact source files allow you to write **standalone Java programs without a class wrapper**, perfect for scripting and quick prototyping.
+
+### **Before Java 25**
+
+```java
+// MainDemo.java
+public class MainDemo {
+    public static void main(String[] args) {
+        IO.println("Hello");
+    }
+}
+```
+
+### **Java 25+**
+
+```java
+// MainDemo.java
+void main() {
+    IO.println("Hello");
+}
+```
+
+**Notes:**
+
+* These files **cannot be instantiated**—they are for one-off execution.
+
+* Great for demos, utilities, and learning.
+
+
+---
+
+## **✅ 2. Instance** `main()` Method (Java 25)
+
+Java now allows **instance main methods** so you can access non-static fields directly.
+
+### **Before Java 25**
+
+```java
+public class MainDemo {
+    String message = "Hello";
+
+    public static void main(String[] args) {
+        var obj = new MainDemo();
+        System.out.println(obj.message);
+        obj.display();
+    }
+
+    void display() {
+        System.out.println("Display method");
+    }
+}
+```
+
+### **Java 25+**
+
+```java
+public class MainDemo {
+    String message = "Hello";
+
+    void main() {
+        System.out.println(message);
+        display();
+    }
+
+    void display() {
+        System.out.println("Display method");
+    }
+}
+```
+
+### **🔑 Key Points**
+
+* Works in both **compact** and **regular** source files.
+
+* JVM automatically creates an instance of your class.
+
+* JVM resolves main methods in this order:
+
+    1. `public static void main(String[] args)`
+
+    2. `public static void main()`
+
+    3. `void main()` (instance)
+
+
+---
+
+## **✅ 3. Flexible Constructor Bodies (Java 25)**
+
+Previously, `super()` or `this()` **must be the first statement** in a constructor, making early validation impossible.
+
+### **Before Java 25**
+
+```java
+class Person {
+    int age;
+    Person(int age) {
+        this.age = age;
+    }
+}
+
+class Employee extends Person {
+    Employee(int age) {
+        super(age);        // Must be FIRST
+        if (age < 18)
+            throw new IllegalArgumentException("Invalid age");
+    }
+}
+```
+
+### **Java 25+: Validation Before** `super()`
+
+```java
+class Employee extends Person {
+    Employee(int age) {
+        if (age < 18)
+            throw new IllegalArgumentException("Invalid age");
+
+        super(age);   // Allowed now
+    }
+}
+```
+
+### **Key Restriction**
+
+You still **cannot access** `this` before the super-constructor finishes, but you *can*:
+
+* Validate input
+
+* Initialize simple local variables
+
+* Perform safe non-instance operations
+
+
+---
+
+## **✅ 4. Module Import (Java 25)**
+
+Import entire Java modules instead of multiple package imports.
+
+### **Before Java 25**
+
+```java
+import java.util.*;
+import java.io.*;
+import java.nio.file.*;
+import java.lang.reflect.*;
+import java.time.*;
+
+public class App {}
+```
+
+### **Java 25+**
+
+```java
+import module java.base;
+
+public class App {}
+```
+
+**Note:** If a name becomes ambiguous, use fully-qualified class names.
+
+---
+
+## **✅ 5. Stream Gatherers (Java 24)**
+
+New intermediate operations for Streams that allow batching, folding, windowing, and custom transforms.
+
+### **Example**
+
+```java
+void main() {
+    List<Integer> numbers = List.of(1,2,3,4,5,6,7,8,9,10);
+
+    numbers.stream()
+           .gather(Gatherers.windowFixed(3))
+           .forEach(System.out::println);
+    /*
+       [1,2,3]
+       [4,5,6]
+       [7,8,9]
+       [10]
+    */
+
+    numbers.stream()
+           .gather(Gatherers.fold(() -> 0, Integer::sum))
+           .forEach(System.out::println);  // Output: 55
+}
+```
+
+Huge improvement for data processing pipelines.
+
+---
+
+## **✅ 6. Markdown Documentation Comments (Java 23)**
+
+Java now supports **Markdown in Javadoc** using `///`.
+
+### **Before Java 23**
+
+```java
+/**
+ * <h3>Configuration Options</h3>
+ * <ul>
+ *   <li>maxConnections</li>
+ *   <li>timeout</li>
+ * </ul>
+ */
+```
+
+### **Java 23+**
+
+````java
+/// ### Configuration Options
+/// - `maxConnections`
+/// - `timeout`
+///
+/// ```java
+/// pool.configure(config);
+/// ```
+
+```
+public void configure(ConnectionConfig config) {}
+```
+````
+
+Much cleaner and more readable.
+
+---
+
+## **✅ 7. Unnamed Variables & Patterns (Java 22)**
+
+Use `_` when a variable declaration is required but unused.
+
+### **Before Java 22**
+
+```java
+try {
+    int number = Integer.parseInt(input);
+} catch (NumberFormatException ex) {
+    System.out.println("Invalid number format");
+}
+```
+
+### **Java 22+**
+
+```java
+try {
+    int number = Integer.parseInt(input);
+} catch (NumberFormatException _) {
+    System.out.println("Invalid number format");
+}
+```
+
+Useful in pattern matching, loops, and records too.
+
+---
+
+## **✅ 8. Run Multiple Files Without Compilation (Java 22)**
+
+Java can now run multiple source files directly.
+
+### [**Main.java**](http://Main.java)
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        Helper.sayHello();
+    }
+}
+```
+
+### [**Helper.java**](http://Helper.java)
+
+```java
+public class Helper {
+    public static void sayHello() {
+        System.out.println("Hello from Helper!");
+    }
+}
+```
+
+### **Before Java 22**
+
+```bash
+javac Main.java Helper.java
+java Main
+```
+
+### **Java 22+**
+
+```bash
+java Main.java
+```
+
+Java will automatically compile dependent files behind the scenes.
+
+---
+
+## **✅ 9. Virtual Threads (Java 21)**
+
+One of the biggest Java improvements ever.
+
+### **Platform Threads (Before Java 21)**
+
+* 2–8 MB stack memory each
+
+* Limited concurrency (~10k threads)
+
+
+### **Virtual Threads (Java 21+)**
+
+* ~1 KB memory
+
+* Millions of threads possible
+
+* Perfect for high-throughput concurrent applications
+
+
+Example:
+
+```java
+ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
+for (int i = 0; i < 1_000_000; i++) {
+    executor.submit(() -> fetchDataFromDatabase());
+}
+```
+
+Game-changing for microservices, I/O heavy apps, and Web servers.
+
+---
+
+## **✅ 10. Records (Java 21)**
+
+Records provide concise, immutable data carriers.
+
+### **Before Java 21**
+
+```java
+class Person {
+    private final String name;
+    private final int age;
+    // constructor, getters, equals, hashcode, toString...
+}
+```
+
+### **Java 21+**
+
+```java
+record Person(String name, int age) {}
+```
+
+---
+
+## **✅ 11. Pattern Matching for Switch (Java 21)**
+
+Cleaner, safer type-based switches.
+
+### **Before Java 21**
+
+```java
+Object obj = "Hello";
+
+switch (obj.getClass().getSimpleName()) {
+    ...
+}
+```
+
+### **Java 21+**
+
+```java
+switch (obj) {
+    case String s -> System.out.println("It's a string!");
+    case Integer i -> System.out.println("It's an integer!");
+    default -> System.out.println("Unknown type");
+}
+```
+
+More readable and eliminates manual casting.
+
+---
+
+## **💡 Final Thoughts**
+
+As Java is evolving faster than ever, and many of these features—especially **virtual threads**, **gatherers**, **compact source files**, and **instance main methods**—make Java development more productive and expressive.
+
+If you're upgrading from a previous version of Java, these changes will enhance productivity and modernize development experience.
+
+## **📚 Quick Reference: Feature Timeline**
+
+| **Feature** | **Version** | **Category** |
+| --- | --- | --- |
+| Virtual Threads | Java 21 | Concurrency |
+| Records | Java 21 | Data Classes |
+| Pattern Matching (switch) | Java 21 | Control Flow |
+| Multi-file Execution | Java 22 | Developer Experience |
+| Unnamed Variables | Java 22 | Code Quality |
+| Markdown Docs | Java 23 | Documentation |
+| Stream Gatherers | Java 24 | Collections |
+| Compact Source Files | Java 25 | Scripting |
+| Instance main() | Java 25 | Entry Points |
+| Flexible Constructor Bodies | Java 25 | Object Creation |
+| Module Imports | Java 25 | Dependencies |

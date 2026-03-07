@@ -20,7 +20,7 @@ export default function BlogPage() {
     fetchPosts();
   }, []);
 
-  const filteredPosts = selectedCategory ? posts.filter(post => post.category === selectedCategory) : posts;
+  const filteredPosts = selectedCategory ? posts.filter(post => post.category === selectedCategory || post.tags?.includes(selectedCategory)) : posts;
 
   return (
     <div>
